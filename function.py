@@ -170,7 +170,7 @@ def handler(event, context):
     for buck in s3_reg:
         q2.put(buck)
 
-    bf      = str(q2.qsize())
+    bf          = str(q2.qsize())
 
     for x in range(20):
         t           = threading.Thread(target = worker_list)
@@ -197,3 +197,4 @@ def handler(event, context):
     
     # return an overview of created/deleted/skipped items for diagnostic purposes. 
     return bf+' buckets found, '+ops+' copy/delete operations'
+
