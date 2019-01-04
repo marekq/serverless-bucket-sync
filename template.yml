@@ -1,0 +1,35 @@
+﻿AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: The serverless-bucket-sync can be used to replicate objects at high speed across S3 buckets in all AWS regions. 
+Parameters:
+  SourceBucket:
+    Type: String
+    Description: Name of the existing source S3 bucket. An IAM role will be automatically created to limit the scope of the Lambda function. 
+Resources:
+  syncserverlessbucket:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: function.handler
+      Runtime: python3.7
+      CodeUri: s3://marek-serverless/sbs.zip
+      Description: 'Replicate a source S3 bucket across all AWS regions.'
+      MemorySize: 1024
+      Timeout: 180
+      Environment:
+        Variables:
+          source_bucket: !Ref SourceBucket
+      Tracing: Active
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - 'ec2:DescribeRegions'
+                - 's3:List*'
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - 's3:Get*'
+                - 's3:CreateBucket'
+                - 's3:PutObject'
+              Resource: !Sub "arn:aws:s3:::${SourceBucket}*"
