@@ -53,7 +53,7 @@ def delete_obj(buck, item):
     print('delete '+item+' in '+buck)
 
 # check whether any files need to be copied or deleted by comparing objects in the source bucket. 
-def get_reg_bucket(buckm, s3_indx):  
+def get_reg_bucket(buck, s3_indx):  
 
     # check whether any files are missing in the destination buckets and copies them if needed. 
     for item, etag in src_indx.items():
