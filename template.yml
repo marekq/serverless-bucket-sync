@@ -5,11 +5,13 @@ Parameters:
   SourceBucket:
     Type: String
     Description: Name of the existing source S3 bucket. An IAM role will be automatically created to limit the scope of the Lambda function. 
+
 Resources:
-  syncserverlessbucket:
+
+  worker:
     Type: 'AWS::Serverless::Function'
     Properties:
-      Handler: function.handler
+      Handler: worker.handler
       Runtime: python3.7
       CodeUri: s3://marek-serverless/sbs.zip
       Description: 'Replicate a source S3 bucket across all AWS regions.'
@@ -24,13 +26,282 @@ Resources:
           Statement:
             - Effect: Allow
               Action:
-                - 'ec2:DescribeRegions'
                 - 's3:List*'
               Resource: '*'
             - Effect: Allow
               Action:
                 - 's3:Get*'
-                - 's3:CreateBucket'
                 - 's3:PutObject'
                 - 's3:DeleteObject'
               Resource: !Sub "arn:aws:s3:::${SourceBucket}*"
+
+  steprole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - !Sub states.${AWS::Region}.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: StatesExecutionPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "lambda:InvokeFunction"
+                Resource: "*"
+
+  serverlessbucketsync:
+    Type: "AWS::StepFunctions::StateMachine"
+    Properties:
+      DefinitionString:
+        !Sub
+          - |-
+            {
+             "Comment": "Serverless Bucket Sync", 
+             "StartAt": "Parallel", 
+             "States": {
+              "Final": {
+               "End": true, 
+               "Type": "Pass"
+              }, 
+              "Parallel": {
+               "Branches": [
+                {
+                 "StartAt": "ap-northeast-1", 
+                 "States": {
+                  "ap-northeast-1": {
+                   "End": true, 
+                   "Parameters": {
+                    "region": "ap-northeast-1"
+                   }, 
+                   "Resource": "${lambdaArn}", 
+                   "ResultPath": "$", 
+                   "Type": "Task"
+                  }
+                 }
+                }, 
+                {
+                 "StartAt": "ap-northeast-2", 
+                 "States": {
+                  "ap-northeast-2": {
+                   "End": true, 
+                   "Parameters": {
+                    "region": "ap-northeast-2"
+                   }, 
+                   "Resource": "${lambdaArn}", 
+                   "ResultPath": "$", 
+                   "Type": "Task"
+                  }
+                 }
+                }, 
+                {
+                 "StartAt": "ap-south-1", 
+                 "States": {
+                  "ap-south-1": {
+                   "End": true, 
+                   "Parameters": {
+                    "region": "ap-south-1"
+                   }, 
+                   "Resource": "${lambdaArn}", 
+                   "ResultPath": "$", 
+                   "Type": "Task"
+                  }
+                 }
+                }, 
+                {
+                 "StartAt": "ap-southeast-1", 
+                 "States": {
+                  "ap-southeast-1": {
+                   "End": true, 
+                   "Parameters": {
+                    "region": "ap-southeast-1"
+                   }, 
+                   "Resource": "${lambdaArn}", 
+                   "ResultPath": "$", 
+                   "Type": "Task"
+                  }
+                 }
+                }, 
+                {
+                 "StartAt": "ap-southeast-2", 
+                 "States": {
+                  "ap-southeast-2": {
+                   "End": true, 
+                   "Parameters": {
+                    "region": "ap-southeast-2"
+                   }, 
+                   "Resource": "${lambdaArn}", 
+                   "ResultPath": "$", 
+                   "Type": "Task"
+                  }
+                 }
+                }, 
+                {
+                 "StartAt": "ca-central-1", 
+                 "States": {
+                  "ca-central-1": {
+                   "End": true, 
+                   "Parameters": {
+                    "region": "ca-central-1"
+                   }, 
+                   "Resource": "${lambdaArn}", 
+                   "ResultPath": "$", 
+                   "Type": "Task"
+                  }
+                 }
+                }, 
+                {
+                 "StartAt": "eu-central-1", 
+                 "States": {
+                  "eu-central-1": {
+                   "End": true, 
+                   "Parameters": {
+                    "region": "eu-central-1"
+                   }, 
+                   "Resource": "${lambdaArn}", 
+                   "ResultPath": "$", 
+                   "Type": "Task"
+                  }
+                 }
+                }, 
+                {
+                 "StartAt": "eu-north-1", 
+                 "States": {
+                  "eu-north-1": {
+                   "End": true, 
+                   "Parameters": {
+                    "region": "eu-north-1"
+                   }, 
+                   "Resource": "${lambdaArn}", 
+                   "ResultPath": "$", 
+                   "Type": "Task"
+                  }
+                 }
+                }, 
+                {
+                 "StartAt": "eu-west-1", 
+                 "States": {
+                  "eu-west-1": {
+                   "End": true, 
+                   "Parameters": {
+                    "region": "eu-west-1"
+                   }, 
+                   "Resource": "${lambdaArn}", 
+                   "ResultPath": "$", 
+                   "Type": "Task"
+                  }
+                 }
+                }, 
+                {
+                 "StartAt": "eu-west-2", 
+                 "States": {
+                  "eu-west-2": {
+                   "End": true, 
+                   "Parameters": {
+                    "region": "eu-west-2"
+                   }, 
+                   "Resource": "${lambdaArn}", 
+                   "ResultPath": "$", 
+                   "Type": "Task"
+                  }
+                 }
+                }, 
+                {
+                 "StartAt": "eu-west-3", 
+                 "States": {
+                  "eu-west-3": {
+                   "End": true, 
+                   "Parameters": {
+                    "region": "eu-west-3"
+                   }, 
+                   "Resource": "${lambdaArn}", 
+                   "ResultPath": "$", 
+                   "Type": "Task"
+                  }
+                 }
+                }, 
+                {
+                 "StartAt": "sa-east-1", 
+                 "States": {
+                  "sa-east-1": {
+                   "End": true, 
+                   "Parameters": {
+                    "region": "sa-east-1"
+                   }, 
+                   "Resource": "${lambdaArn}", 
+                   "ResultPath": "$", 
+                   "Type": "Task"
+                  }
+                 }
+                }, 
+                {
+                 "StartAt": "us-east-1", 
+                 "States": {
+                  "us-east-1": {
+                   "End": true, 
+                   "Parameters": {
+                    "region": "us-east-1"
+                   }, 
+                   "Resource": "${lambdaArn}", 
+                   "ResultPath": "$", 
+                   "Type": "Task"
+                  }
+                 }
+                }, 
+                {
+                 "StartAt": "us-east-2", 
+                 "States": {
+                  "us-east-2": {
+                   "End": true, 
+                   "Parameters": {
+                    "region": "us-east-2"
+                   }, 
+                   "Resource": "${lambdaArn}", 
+                   "ResultPath": "$", 
+                   "Type": "Task"
+                  }
+                 }
+                }, 
+                {
+                 "StartAt": "us-west-1", 
+                 "States": {
+                  "us-west-1": {
+                   "End": true, 
+                   "Parameters": {
+                    "region": "us-west-1"
+                   }, 
+                   "Resource": "${lambdaArn}", 
+                   "ResultPath": "$", 
+                   "Type": "Task"
+                  }
+                 }
+                }, 
+                {
+                 "StartAt": "us-west-2", 
+                 "States": {
+                  "us-west-2": {
+                   "End": true, 
+                   "Parameters": {
+                    "region": "us-west-2"
+                   }, 
+                   "Resource": "${lambdaArn}", 
+                   "ResultPath": "$", 
+                   "Type": "Task"
+                  }
+                 }
+                }
+               ], 
+               "Next": "Final", 
+               "Type": "Parallel"
+              }
+             }
+            }
+          - {lambdaArn: !GetAtt [ worker, Arn ]}
+      RoleArn: !GetAtt [ steprole, Arn ]
