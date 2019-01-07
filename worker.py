@@ -11,8 +11,6 @@ import botocore, boto3, threading, time, os, queue
 s3r     = boto3.resource('s3', config = botocore.client.Config(max_pool_connections = 20))
 s3c     = boto3.client('s3', config = botocore.client.Config(max_pool_connections = 20))
 ec2     = boto3.client('ec2')
-buckn   = os.environ['source_bucket']
-
 q1      = queue.Queue()
 
 ##########
@@ -31,19 +29,19 @@ def worker_crud():
         q1.task_done()
 
 # get all files within a given S3 bucket. 
-def get_files(b):
-    indx        = {}
-    objs        = s3c.list_objects_v2(Bucket = b)
+def get_files(buck):
+    index       = {}
+    objs        = s3c.list_objects_v2(Bucket = buck)
     
     if objs['KeyCount'] != 0:
         for obj in objs['Contents']:
-            indx[obj['Key']] = obj['ETag']
+            index[obj['Key']] = obj['ETag']
 
-    return indx
+    return index
 
 # copy an object from the source to the destination bucket.
 def copy_obj(buck, item):
-    src     = {'Bucket' : buckn, 'Key': item}
+    src     = {'Bucket' : srcbuck, 'Key': item}
     s3r.Object(buck, item).copy(src)
     print('copied '+item+' to '+buck)
 
@@ -53,19 +51,19 @@ def delete_obj(buck, item):
     print('delete '+item+' in '+buck)
 
 # check whether any files need to be copied or deleted by comparing objects in the source bucket. 
-def get_reg_bucket(buck, s3_indx):  
+def get_reg_bucket(buck, src_index, dst_index):  
 
     # check whether any files are missing in the destination buckets and copies them if needed. 
-    for item, etag in src_indx.items():
-        if item not in s3_indx.keys():
+    for item, etag in src_index.items():
+        if item not in dst_index.keys():
             q1.put(['copy', buck, item])
 
-        if etag not in s3_indx.values():
+        if etag not in dst_index.values():
             q1.put(['copy', buck, item])
 
     # check whether any unneccesary files are present in the destination buckets and deletes them if needed.        
-    for item, etag in s3_indx.items():
-        if item not in src_indx.keys():
+    for item, etag in dst_index.items():
+        if item not in src_index.keys():
             q1.put(['delete', buck, item])
 
 # checks whether the bucket has a public or private acl and return the acl. 
@@ -87,11 +85,13 @@ def get_buck_acl(b):
 
 # the lambda handler bootstrapping the code.
 def handler(event, context):
-    buck        = event['region']
-    print(buck)
+    global srcbuck
+    srcbuck         = os.environ['source_bucket']
+    dstbuck         = srcbuck+'-'+event['region']
 
-    s3_indx     = get_files(buck)
-    get_reg_bucket(buck, s3_indx)
+    src_index       = get_files(srcbuck)
+    dst_index       = get_files(dstbuck)
+    get_reg_bucket(dstbuck, src_index, dst_index)
 
     # copy or delete any objects that are different from the source bucket using 100 threads.
     startt          = int(round(time.time() * 100))
@@ -106,8 +106,8 @@ def handler(event, context):
     stopt           = int(round(time.time() * 100))
     
     # print how many buckets were found, how long the copy operations took and how many operations were done per second. 
-    print(ops+' \t operations to copy/delete objects')
-    print(float(ops * 100) / float(stopt - startt), ' \t operations per second')
+    print(ops+' operations to copy/delete objects')
+    print(float(ops * 100) / float(stopt - startt), ' operations per second')
     
     # return an overview of created/deleted/skipped items for diagnostic purposes. 
-    return buck+', '+bf+' buckets found, '+ops+' copy/delete operations'
+    return 'sync from '+srcbuck+' to '+dstbuck+', '+ops+' copy/delete operations'

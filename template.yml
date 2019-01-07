@@ -15,8 +15,8 @@ Resources:
       Runtime: python3.7
       CodeUri: s3://marek-serverless/sbs.zip
       Description: 'Replicate a source S3 bucket across all AWS regions.'
-      MemorySize: 1024
-      Timeout: 180
+      MemorySize: 256
+      Timeout: 30
       Environment:
         Variables:
           source_bucket: !Ref SourceBucket
@@ -26,10 +26,11 @@ Resources:
           Statement:
             - Effect: Allow
               Action:
-                - 's3:List*'
+                - 's3:ListBuckets'
               Resource: '*'
             - Effect: Allow
               Action:
+                - 's3:List*'
                 - 's3:Get*'
                 - 's3:PutObject'
                 - 's3:DeleteObject'
